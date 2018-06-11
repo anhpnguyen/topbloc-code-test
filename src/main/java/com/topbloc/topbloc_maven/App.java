@@ -3,9 +3,7 @@ package com.topbloc.topbloc_maven;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import org.apache.http.HttpEntity;
-import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -20,7 +18,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -29,6 +26,8 @@ public class App
 	public static final String DATA1_PATH = "./Data1.xlsx";
     public static final String DATA2_PATH = "./Data2.xlsx";
     private static final String id = "anhpnguyen.an@gmail.com";
+    private static final String uri = "http://34.239.125.159:5000";
+    
     public static void main( String[] args )
     {
     	//Creating files from paths
@@ -59,10 +58,10 @@ public class App
 			e.printStackTrace();
 		}   
     }
-    private static final String uri = "http://34.239.125.159:5000";
     private static String PostToServer(Payload data) throws ClientProtocolException, IOException {
     	CloseableHttpClient httpclient = HttpClients.createDefault();
     	HttpPost httpPost = new HttpPost(uri + "/challenge");
+    	//Add id for payload
     	data.id = id;
     	GsonBuilder builder = new GsonBuilder();
     	Gson gson = builder.create();   	
