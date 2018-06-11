@@ -20,7 +20,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.json.simple.JSONObject;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class App 
 {
@@ -34,100 +36,97 @@ public class App
         File file2 = new File(DATA2_PATH);
         
         //Passing files in Data constructor to create workbooks
-        Data data1 = new Data(file1);
-        Data data2 = new Data(file2);
+        DataProcessor data1 = new DataProcessor(file1);
+        DataProcessor data2 = new DataProcessor(file2);
         
         //Importing data from sheets into memory
-        data1.processData();
-        data2.processData();
+        Payload ds1 = data1.processData();
+        Payload ds2 = data2.processData();
         
         //Do calculations and concatenations
-        int[] setOneResult = MultiplyNumberSetOne(data1.getNumberSetOne(), data2.getNumberSetOne());
-        int[] setTwoResult = DivideNumberSetTwo(data1.getNumberSetTwo(), data2.getNumberSetTwo());
-        String[] wordSetResult = ConcatWordSet(data1.getWordSetOne(), data2.getWordSetOne());
+        Payload calculatedData = new Payload();
+        calculatedData.numberSetOne = MultiplyNumberSetOne(ds1.numberSetOne, ds2.numberSetOne);
+        calculatedData.numberSetTwo = DivideNumberSetTwo(ds1.numberSetTwo, ds2.numberSetTwo);
+        calculatedData.wordSetOne = ConcatWordSet(ds1.wordSetOne, ds2.wordSetOne);
         
         //Make POST request to server
         try {
-			StatusLine status = PostToServer(setOneResult, setTwoResult, wordSetResult);
-			System.out.println(status);
+			String httpResult = PostToServer(calculatedData);
+			System.out.println(httpResult);
 		} catch (ClientProtocolException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}   
     }
     private static final String uri = "http://34.239.125.159:5000";
-    private static StatusLine PostToServer(int[] numberSet1, int[] numberSet2, String[] wordSet) throws ClientProtocolException, IOException {
+    private static String PostToServer(Payload data) throws ClientProtocolException, IOException {
     	CloseableHttpClient httpclient = HttpClients.createDefault();
     	HttpPost httpPost = new HttpPost(uri + "/challenge");
-    	JSONObject obj = new JSONObject();
-    	obj.put("id", id);
-    	obj.put("numberSetOne", Arrays.toString(numberSet1));
-    	obj.put("numberSetTwo", Arrays.toString(numberSet2));
-    	obj.put("wordSetOne", Arrays.toString(wordSet));
-    	//System.out.println(Arrays.toString(numberSet1));
-    	//System.out.println(Arrays.toString(numberSet2));
-    	//System.out.println(Arrays.toString(wordSet));
-    	String message = obj.toJSONString();
+    	data.id = id;
+    	GsonBuilder builder = new GsonBuilder();
+    	Gson gson = builder.create();   	
+    	String message = gson.toJson(data);
+    	System.out.println(message);
     	StringEntity entity = new StringEntity(message, ContentType.APPLICATION_JSON);
     	httpPost.setEntity(entity);
     	CloseableHttpResponse response2 = httpclient.execute(httpPost);
 
     	try {
     	    HttpEntity entity2 = response2.getEntity(); 	 
-    	    EntityUtils.consume(entity2);
+    	    if(entity2 != null) {
+    	    	String ret = EntityUtils.toString(entity2);
+    	    	return ret;
+    	    }
     	} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();			
 		} 
-    	return response2.getStatusLine();
+    	return null;
     }
-    private static String[] ConcatWordSet(ArrayList<String> wordSetOne1, ArrayList<String> wordSetOne2) {
+    private static ArrayList<String> ConcatWordSet(ArrayList<String> wordSetOne1, ArrayList<String> wordSetOne2) {
 		if(wordSetOne1.size() != wordSetOne2.size()) return null;
-    	String[] resultArray = new String[wordSetOne1.size()];
-		for(int i = 0; i < resultArray.length; i++) {
-    		resultArray[i] = wordSetOne1.get(i) + " " + wordSetOne2.get(i);
+    	ArrayList<String> resultArray = new ArrayList<String>();
+		for(int i = 0; i < wordSetOne1.size(); i++) {
+    		resultArray.add(wordSetOne1.get(i) + " " + wordSetOne2.get(i));
     	}
 		return resultArray;
 	}
-	private static int[] DivideNumberSetTwo(ArrayList<Integer> numberSetTwo1, ArrayList<Integer> numberSetTwo2) {
+	private static ArrayList<Integer> DivideNumberSetTwo(ArrayList<Integer> numberSetTwo1, ArrayList<Integer> numberSetTwo2) {
 		if(numberSetTwo1.size() != numberSetTwo2.size()) return null;
-		int[] resultArray = new int[numberSetTwo1.size()];
-    	for(int i = 0; i < resultArray.length; i++) {
-    		resultArray[i] = numberSetTwo1.get(i) / numberSetTwo2.get(i);
+		ArrayList<Integer> resultArray = new ArrayList<Integer>();
+    	for(int i = 0; i < numberSetTwo1.size(); i++) {
+    		resultArray.add(numberSetTwo1.get(i) / numberSetTwo2.get(i));
     	}
     	return resultArray;
 	}
-	private static int[] MultiplyNumberSetOne(ArrayList<Integer> setOne1, ArrayList<Integer> setTwo2) {
+	private static ArrayList<Integer> MultiplyNumberSetOne(ArrayList<Integer> setOne1, ArrayList<Integer> setTwo2) {
 		if(setOne1.size() != setTwo2.size()) return null;
-		int[] resultArray = new int[setOne1.size()];
-    	for(int i = 0; i < resultArray.length; i++) {
-    		resultArray[i] = setOne1.get(i) * setTwo2.get(i);
+		ArrayList<Integer> resultArray = new ArrayList<Integer>();
+    	for(int i = 0; i < setOne1.size(); i++) {
+    		resultArray.add(setOne1.get(i) * setTwo2.get(i));
     	}
     	return resultArray;
     }
-    public static class Data{
-        private ArrayList<Integer> _numberSetOne;
-        private ArrayList<Integer> _numberSetTwo;
-        private ArrayList<String> _wordSetOne;
+	public static class Payload{
+		public String id;
+        public ArrayList<Integer> numberSetOne = new ArrayList<Integer>();
+        public ArrayList<Integer> numberSetTwo = new ArrayList<Integer>();
+        public ArrayList<String> wordSetOne = new ArrayList<String>();
+		
+	}
+    public static class DataProcessor{
+
         private Workbook _workbook;
-        public Data(File file) {
+        public DataProcessor(File file) {
         	try {
             	_workbook = WorkbookFactory.create(file);
 
         	}catch(Exception e) {
         		e.printStackTrace();	
-        	}
-        	_numberSetOne = new ArrayList<Integer>();
-        	_numberSetTwo = new ArrayList<Integer>();
-        	_wordSetOne = new ArrayList<String>(); 	
+        	} 	
         }
-        public ArrayList<Integer> getNumberSetOne(){ return _numberSetOne; }
-        public ArrayList<Integer> getNumberSetTwo(){ return _numberSetTwo; }
-        public ArrayList<String> getWordSetOne(){ return _wordSetOne; }
-        public void processData() {
+        public Payload processData() {
+        	Payload result = new Payload();
         	Sheet sheet = _workbook.getSheetAt(0);
         	DataFormatter dataFormatter = new DataFormatter();
             int numberOfRows = sheet.getPhysicalNumberOfRows();
@@ -138,13 +137,13 @@ public class App
                     	String cellValue = dataFormatter.formatCellValue(cell);
                     	switch(cell.getColumnIndex()) {
                     		case 0:
-                    			_numberSetOne.add(Integer.parseInt(cellValue));
+                    			result.numberSetOne.add(Integer.parseInt(cellValue));
                     			break;
                     		case 1: 
-                    			_numberSetTwo.add(Integer.parseInt(cellValue));
+                    			result.numberSetTwo.add(Integer.parseInt(cellValue));
                     			break;
                     		case 2:
-                    			_wordSetOne.add(cellValue);
+                    			result.wordSetOne.add(cellValue);
                     			break;
                     	}
                     }
@@ -153,6 +152,7 @@ public class App
             catch(Exception e) {
             	e.printStackTrace();	
             }
+            return result;
         }
     }
 }
